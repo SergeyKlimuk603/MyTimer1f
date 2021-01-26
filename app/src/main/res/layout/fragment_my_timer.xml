@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <!--этот слой для подсвечивания представления таймера-->
+    <FrameLayout
+        android:id="@+id/flMainBack"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginBottom="2dp">
+        <!--этот слой содержит границу (рамку) таймера-->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="90dp"
+            android:background="@drawable/border"
+            android:orientation="horizontal">
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="3">
+                <TextView
+                    android:id="@+id/tvName"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="left|top"
+                    android:textColor="@color/textColor"
+                    android:text="timer name"
+                    android:layout_marginLeft="5dp"
+                    />
+                <TextView
+                    android:id="@+id/tvDur"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="right|top"
+                    android:textColor="@color/textColor"
+                    android:text="timer duration"
+                    android:layout_marginRight="5dp"
+                    />
+
+                <TextView
+                    android:id="@+id/tvMess"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_marginRight="5dp"
+                    android:gravity="center"
+                    android:text="timer message"
+                    android:textColor="@color/textColor"
+                    android:textSize="30sp" />
+
+                <ImageView
+                    android:id="@+id/ivSet"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_marginLeft="5dp"
+                    android:layout_marginBottom="5dp"
+                    android:layout_gravity="left|bottom"
+                    android:src="@android:drawable/ic_menu_edit" />
+            </FrameLayout>
+            <LinearLayout
+                android:id="@+id/layoutBtn"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:layout_weight="1"
+                android:layout_margin="3dp"/>
+        </LinearLayout>
+    </FrameLayout>
+</FrameLayout>
