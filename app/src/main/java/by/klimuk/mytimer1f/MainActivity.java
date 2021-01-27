@@ -3,18 +3,24 @@ package by.klimuk.mytimer1f;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.FragmentTransaction;
 
+import android.app.Fragment;
+import android.content.SharedPreferences;
 import android.media.MediaPlayer;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.HashMap;
 
+import static by.klimuk.mytimer1f.Conctants.*;
+
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
-    private final String LOG_TAG = "myLog";
+    private final String LOG_TAG = "myLogs";
     //Log.d(LOG_TAG, "Создали активити");
 
     //настройки таймера по умолчанию
@@ -32,7 +38,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     TextView btnAdd;//кнопка добавления таймера
 
     //список таймеров
-    //HashMap<Integer, MyTimer> timers;
+    HashMap<Integer, MyTimerFragment> timers;
 
     //проигрыватель звуковых файлов
     //MediaPlayer mp;
@@ -42,8 +48,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     FragmentTransaction transaction;
 
-    FrameLayout fl;
-    FrameLayout fll;
+    MyTimerFragment t0;
+    MyTimerFragment t1;
 
 
     @Override
@@ -51,20 +57,36 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        //создаем музыкальный проигрыватель
-        //mp = MediaPlayer.create(this, R.raw.music);
+        Log.d(LOG_TAG, "MainActivit - onCreate");
+
+        //создаем список для таймеров
+        timers = new HashMap<Integer, MyTimerFragment>();
         //инициализация представлений
         initView();
         if (savedInstanceState == null) {
-            MyTimerFragment fragment = new MyTimerFragment(5, "Sergey", "Hello!!!", 100);
-            MyTimerFragment fragment1 = new MyTimerFragment(10, "Vera", "Hi", 5);
-            transaction = getSupportFragmentManager().beginTransaction();
+            Log.d(LOG_TAG, "MainActivit - onCreate savedInstanceState == null");
+            t0 = new MyTimerFragment(0, "Sergey1", "Hello!!!1", 10);
+            t1 = new MyTimerFragment(1, "Sergey2", "Hello!!!2", 20);
 
-            //fl = new FrameLayout(this);
-            //timersList.addView(fl);
-            transaction.add(timersList.getId(), fragment);
-            transaction.add(timersList.getId(), fragment1);
+            transaction = getSupportFragmentManager().beginTransaction();
+            transaction.add(timersList.getId(), t0, TIMER_TAG + 0);
+            transaction.add(timersList.getId(), t1, TIMER_TAG + 1);
             transaction.commit();
+
+            Log.d(LOG_TAG, "MainActivit - onCreate t1.getTag = " + t1.getTag());
+            timers.put(0, t0);
+            timers.put(1, t1);
+
+        } else {
+            Log.d(LOG_TAG, "MainActivit - onCreate savedInstanceState != null");
+            //Log.d(LOG_TAG, "|||" + (((MyTimerFragment)getSupportFragmentManager().findFragmentByTag(TIMER_TAG + 0)).getName()));
+
+
+            timers.put(0, ((MyTimerFragment)getSupportFragmentManager().findFragmentByTag(TIMER_TAG + 0)));
+            timers.put(1, ((MyTimerFragment)getSupportFragmentManager().findFragmentByTag(TIMER_TAG + 1)));
+            Log.d(LOG_TAG, "|||" +  timers.get(0).getName());
+            Log.d(LOG_TAG, "|||" +  timers.get(1).getName());
+
         }
     }
 
@@ -79,12 +101,117 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         btnAdd.setOnClickListener(this);
     }
 
+    private void createTimers() {
+        //создаем объекты для работы с файлом сохранения таймеров
+        SharedPreferences sPref = getSharedPreferences(SAVE_FILE_NAME, MODE_PRIVATE);
+        for(int i = 0; i < MAX_TIMERS_AMOUNT; i++) {
+            //проверяем есть ли в записях таймер с id == i, если нет - пропускаем этот id
+            int id = sPref.getInt(TIMER_ID + i, -1);
+            if(id == -1) {continue;}
+            String name = sPref.getString(TIMER_NAME + i, DEFAULT_NAME);
+            String mess = sPref.getString(TIMER_MESSAGE + i, DEFAULT_MESSAGE);
+            int dur = sPref.getInt(TIMER_DURATION + i, DEFAULT_DURATION);
+            createTimer(i, name, mess, dur);
+        }
+    }
 
+    //создаем и добавляем новый таймер в файл
+    private void addNewTimer() {
+        //ищем свободный id для нового таймера
+        int freeId = findFreeId();
+        Log.d(LOG_TAG, "Свободный id = " + freeId);
+        //если свободного id нет, то выводим сообщение, что создано максимальное количество
+        // таймеров и выходим из метода
+        if(freeId >= MAX_TIMERS_AMOUNT) {
+            Toast.makeText(this, getResources().getText(R.string.max_timers_amount) +
+                    " = " + MAX_TIMERS_AMOUNT, Toast.LENGTH_LONG).show();
+            return;
+        }
+        //создаем таймер с полученным свободным id
+        createTimer(freeId, DEFAULT_NAME, DEFAULT_MESSAGE, DEFAULT_DURATION);
+        //сохраняем новый таймер в файл
+        saveTimer(timers.get(freeId));
+    }
+
+    //создаем новый таймер с заданным id
+    private void createTimer(int _id, String _name, String _message, int _duration) {
+        //создаем новый таймер
+        MyTimerFragment t = new MyTimerFragment(_id, _name, _message, _duration);
+        //помещаем его в список таймеров
+        timers.put(_id, t);
+        //добавляем новый таймер на экран
+        transaction = getSupportFragmentManager().beginTransaction();
+        transaction.add(timersList.getId(), t);
+        transaction.commit();
+    }
+
+    //ищем сободный id для таймера
+    private int findFreeId() {
+        //создаем объекты для работы с файлом сохранения таймеров
+        SharedPreferences sPref = getSharedPreferences(SAVE_FILE_NAME, MODE_PRIVATE);
+        //SharedPreferences.Editor editor = sPref.edit();
+        for(int i = 0; i < MAX_TIMERS_AMOUNT; i++) {
+            //считываем имеющиеся id из файла, если id отсутствует,
+            //значит от свободен, метод возвращает номер этого id, для создания нового таймера
+            int id = sPref.getInt(TIMER_ID + i, -1);
+            if (id == -1) {
+                return i;
+            }
+        }
+        //если все id заняты перезаписываем таймер с id 100, даже если он существует
+        return MAX_TIMERS_AMOUNT;
+    }
+
+    //сохранение настроек таймера в файл
+    public void saveTimer(MyTimerFragment t) {
+        SharedPreferences sPref = getSharedPreferences(SAVE_FILE_NAME, MODE_PRIVATE);
+        SharedPreferences.Editor editor = sPref.edit();
+        editor.putInt((TIMER_ID + t.getTimerId()), t.getTimerId());
+        editor.putString((TIMER_NAME + t.getTimerId()), t.getName());
+        editor.putString((TIMER_MESSAGE + t.getTimerId()), t.getMessage());
+        editor.putInt((TIMER_DURATION + t.getTimerId()), t.getDuration());
+        editor.apply();
+    }
+
+    //удаляем таймер
+    public void delTimer(int _id) {
+        //создаем объекты для работы с файлом сохранения таймеров
+        SharedPreferences sPref = getSharedPreferences(SAVE_FILE_NAME, MODE_PRIVATE);
+        SharedPreferences.Editor editor = sPref.edit();
+        //удаляем таймер из файла
+        editor.remove(TIMER_ID + _id);
+        editor.remove(TIMER_NAME + _id);
+        editor.remove(TIMER_MESSAGE + _id);
+        editor.remove(TIMER_DURATION + _id);
+        editor.apply();
+
+        //удаляем таймер с экрана
+        transaction = getSupportFragmentManager().beginTransaction();
+        transaction.remove(timers.get(_id));
+        transaction.commit();
+//        //удаляем таймер из списка
+//        timers.remove(requestCode);
+    }
 
     @Override
     public void onClick(View v) {
-
+        switch (v.getId()) {
+            case R.id.btnAdd://нажата кнопка добавления таймера
+                addNewTimer();//создать и добавить новый таймер
+                break;
+            case R.id.btnSoundOff://нажата кнопка выключения звука
+                //stopSound();//выключить звук
+        }
     }
 
+    public void onStop() {
+        super.onStop();
+        Log.d(LOG_TAG, "MainActivity - onStop");
+    }
 
+    public void onDestroy() {
+        super.onDestroy();
+        Log.d(LOG_TAG, "MainActivity - onDestroy");
+        Log.d(LOG_TAG, " ");
+    }
 }
