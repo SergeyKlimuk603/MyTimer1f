@@ -48,7 +48,6 @@ public class MyTimerFragment extends Fragment implements View.OnClickListener, R
 
     // Вспомогательные элементы таймера
     private Handler handler;// handler для отсчета времени
-    private Activity activity; // ссылка на вызывающую таймер активность
     private Converter timeConvert;// объект для преобразования времени в различные форматы
 
     // переменные доступа к view элементам таймера
@@ -100,10 +99,6 @@ public class MyTimerFragment extends Fragment implements View.OnClickListener, R
         BTN_CONT_NAME = getResources().getString(R.string.cont);
     }
 
-
-
-
-
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -147,19 +142,22 @@ public class MyTimerFragment extends Fragment implements View.OnClickListener, R
         if (lostTime == -1){//таймер сброшен
             //Log.d(LOG_TAG, "________________________________frag" + id + " таймер сброшен");
             initTimer(name, btnStart, null, R.color.transparent);
+            //reset();
         } else if (lostTime > 0 & runTimer == false) {//таймер в состоянии паузы
             //Log.d(LOG_TAG, "________________________________frag" + id + " таймер в состоянии паузы");
             initTimer(timeConvert.intToStringTime(lostTime), btnCont, btnReset, R.color.transparent);
-        }  else if (lostTime == 0 & runTimer == true) {//таймер завершил отсчет и ждет сброса
+            //pause();
+        }  else if (lostTime == 0) {//таймер завершил отсчет и ждет сброса
             //Log.d(LOG_TAG, "________________________________frag" + id + " таймер завершил отсчет и ждет сброса");
             initTimer(message, btnReset, null, R.color.background_main);
+            //endTime();
         } else {//таймер работает
             //Log.d(LOG_TAG, "________________________________frag" + id + " таймер работает");
             //Log.d(LOG_TAG, "________________________________frag" + id +
             //       " lostTime = " + lostTime + ", runTimer = " + runTimer);
             initTimer(timeConvert.intToStringTime(time), btnPause, btnReset, R.color.transparent);
-            //handler.post(this);
-            run();
+            handler.post(this);
+            //cont();
         }
 
         // Inflate the layout for this fragment
@@ -207,11 +205,11 @@ public class MyTimerFragment extends Fragment implements View.OnClickListener, R
     //метод создания одной кнопки
     private Button createButton(String _name, int _id, ViewGroup.LayoutParams _lp,
                                 int _background) {
-        Button btn = new Button(activity);// новая кнопка
+        Button btn = new Button(getActivity());// новая кнопка
         btn.setId(_id);// id кнопки
         btn.setText(_name);// название кнопки
         btn.setLayoutParams(_lp);// параметры расположения кнопки
-        btn.setTextColor(activity.getResources().getColor(R.color.textColor));// цвет текста кнопки
+        btn.setTextColor(getActivity().getResources().getColor(R.color.textColor));// цвет текста кнопки
         btn.setBackgroundResource(_background);// рамка вокруг кнопки
         btn.setOnClickListener(this);//добавляем данный класс слушателем кнопки
         return btn;
@@ -273,7 +271,7 @@ public class MyTimerFragment extends Fragment implements View.OnClickListener, R
         // сообщаем активности, что сбросили таймер. Это нужно для отключения сигнала, если сработавший
         // таймер был последним (определяем по сообщению таймера: если оно совпадает с тем, что
         // на общем экране - значит это последний сработавший таймер)
-        //activity.timerReset(message);
+        ((MainActivity) getActivity()).timerReset(message);
     }
 
     //приостановить отсчет времени
@@ -281,10 +279,12 @@ public class MyTimerFragment extends Fragment implements View.OnClickListener, R
         addButtons(btnCont, btnReset);//обновляем кнопки
         runTimer = false;// останавливаем таймер
         lostTime = time;// запоминаем оставшееся для отсчета время
+        tvMess.setText(timeConvert.intToStringTime(lostTime));//эта строчка повороте экрана, а может и нет
     }
 
     //продолжить отсчет времени
     private void cont() {
+        lostTime = time;// запоминаем оставшееся для отсчета время yfljkasjdf
         addButtons(btnPause, btnReset);//обновляем кнопки
         // продолжаем остчет времени
         startTime = System.currentTimeMillis();// системное время при пуске или перезапуске таймера
@@ -294,7 +294,7 @@ public class MyTimerFragment extends Fragment implements View.OnClickListener, R
 
     // вызываем меню таймера
     private void callMenu() {
-        Intent intent = new Intent(activity, TimerMenu.class);
+        Intent intent = new Intent(getActivity(), TimerMenu.class);
         intent.putExtra(TIMER_NAME, name);// передаем текущее имя таймера
         intent.putExtra(TIMER_MESSAGE, message);// передаем текущее сообщение таймера
         intent.putExtra(TIMER_DURATION, duration);// передаем текущую уставку времени таймера
@@ -322,13 +322,15 @@ public class MyTimerFragment extends Fragment implements View.OnClickListener, R
 
     //отсчет закончен
     private void endTime() {
+        runTimer = false;
+        lostTime = 0;
         addButtons(btnReset);//обновляем кнопки
         tvMess.setText(message);
         layoutMainBack.setBackgroundResource(R.color.background_main);// выделяем сработавший таймер фоном
         lostTime = 0;// таймер завершил отсчет времени и ждет сброса
         // сообщаем активности о завершении отсчета для включения сигнала
         // и передаем ей сообщение таймера для вывода его на общий экран сообщений
-        //activity.timerEnd(message);
+        ((MainActivity) getActivity()).timerEnd(message);
     }
 
     //метод принимает настройки из TimerMenu и меняет настройки соответствующего таймера
@@ -384,7 +386,6 @@ public class MyTimerFragment extends Fragment implements View.OnClickListener, R
 
     public void onAttach(Activity activity) {
         super.onAttach(activity);
-        this.activity = activity;
         //Log.d(LOG_TAG, "________________________________frag" + id + " onAttach");
     }
 

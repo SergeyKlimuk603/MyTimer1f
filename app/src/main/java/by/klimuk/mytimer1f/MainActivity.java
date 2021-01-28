@@ -3,19 +3,21 @@ package by.klimuk.mytimer1f;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.FragmentTransaction;
 
-import android.app.Fragment;
 import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.media.MediaPlayer;
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.Log;
 import android.view.View;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 
 import static by.klimuk.mytimer1f.Conctants.*;
@@ -25,11 +27,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private final String LOG_TAG = "myLogs";
     //Log.d(LOG_TAG, "Создали активити");
 
-    //настройки таймера по умолчанию
-    private final int DEFAULT_ID = 0;
-    private final String DEFAULT_NAME = "Default timer";
-    private final String DEFAULT_MESSAGE = "Default message";
-    private final int DEFAULT_DURATION = 10;
+//    //настройки таймера по умолчанию
+//    private final int DEFAULT_ID = 0;
+//    private final String DEFAULT_NAME = "Default timer";
+//    private final String DEFAULT_MESSAGE = "Default message";
+//    private final int DEFAULT_DURATION = 10;
 
     //переменные доступа к view элементам
     LinearLayout timersList;//поле списка таймеров
@@ -39,19 +41,28 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     TextView btnSoundOff;//кнопка отключения звука
     TextView btnAdd;//кнопка добавления таймера
 
+    //переменная состояния главного экрана, используется при повороте экрана
+    private static int mainState;
+
     //список таймеров
-    HashMap<Integer, MyTimerFragment> timers;
+    private HashMap<Integer, MyTimerFragment> timers;
+
+    //константы состояния главного экрана
+    public static final int MAIN_STATE_REST = 0;
+    public static final int MAIN_STATE_ALARM = 1;
+    public static final int MAIN_STATE_WAIT = 2;
+
+    public static final String MAIN_STATE = "mainState";
 
     //проигрыватель звуковых файлов
-    //MediaPlayer mp;
+    public static MediaPlayer mp;
 
     //переменная онимации кнопок, если true - анимация включена
     private boolean animation = false;
 
     FragmentTransaction transaction;
 
-//    MyTimerFragment t0;
-//    MyTimerFragment t1;
+
 
 
     @Override
@@ -69,25 +80,42 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             Log.d(LOG_TAG, "MainActivit - onCreate savedInstanceState == null");
             //создаем новые таймеры
             createTimers();
+            mainState = MAIN_STATE_REST;
+
         } else {
             Log.d(LOG_TAG, "MainActivit - onCreate savedInstanceState != null");
             //Log.d(LOG_TAG, "|||" + (((MyTimerFragment)getSupportFragmentManager().findFragmentByTag(TIMER_TAG + 0)).getName()));
 
-            int timersAmount = savedInstanceState.getInt(TIMER_TAG);
+            //определяем количество таймеров
+            int timersAmount = savedInstanceState.getInt(TIMER_TAG);//Для простоты используем в качестве ключа константу TIMER_TAG не добавляя индекс.
 
             for (int i = 0; i < timersAmount; i++) {
                 //получаем таг фрагмента по порядковому номеру записанному в Bundle
                 String tag = savedInstanceState.getString(TIMER_TAG + i);
-                Log.d(LOG_TAG, "??? tag" + i + " = " + tag);
+
+                        //Log.d(LOG_TAG, "??? tag" + i + " = " + tag);
 
                 //получаем ссылку на новый фрагмент таймера по номеру тага
                 MyTimerFragment t = ((MyTimerFragment)getSupportFragmentManager().
                         findFragmentByTag(tag));
-                Log.d(LOG_TAG, "MainActivit - onCreate t.getTimerId() = " + t.getTimerId());
+                //Log.d(LOG_TAG, "MainActivit - onCreate t.getTimerId() = " + t.getTimerId());
                 timers.put(t.getTimerId(), t);
             }
-            Log.d(LOG_TAG, "?MainActivit - onCreate timers.size() = " + timers.size());
+            //Log.d(LOG_TAG, "?MainActivit - onCreate timers.size() = " + timers.size());
 
+
+            //эту переменную сделали статической, поэтому при повороте ее передавать не нужно
+            //mainState = savedInstanceState.getInt(MAIN_STATE, MAIN_STATE_REST);
+            Log.d(LOG_TAG, "mainState = " + mainState);
+
+            tvMainMess.setText(savedInstanceState.getString(MAIN_MESS));
+
+            if (mainState == MAIN_STATE_ALARM) {
+                frameLayoutAnim(flSoundOffBack);
+                flMainMessBack.setBackgroundResource(R.drawable.border_solid);
+            } else if (mainState == MAIN_STATE_WAIT) {
+                flMainMessBack.setBackgroundResource(R.drawable.border_solid);
+            }
         }
     }
 
@@ -103,9 +131,20 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             //передаем таг в Bundle здесь (TIMER_TAG + i) - порядковый номер тага в списке таймеров
             // он не обязан совпадать с самим тагом таймера, - это нормально
             sis.putString(TIMER_TAG + i, s);//передаем таг в Bundle здесь (TIMER_TAG + i) может не совпадать с тагом таймера, это нормально
-            Log.d(LOG_TAG, "|?|" + TIMER_TAG + i + " = " + s + ", timers.size() = " + timers.size());
+            //Log.d(LOG_TAG, "|?|" + TIMER_TAG + i + " = " + s + ", timers.size() = " + timers.size());
             i++;//берем следующий элемент
         }
+        //сохраняем состояние активности
+        //эту переменную сделали статической, поэтому при повороте ее передавать не нужно
+        //sis.putInt(MAIN_STATE, mainState);
+        //сохраняем текст отображаемый в главном сообщении
+        sis.putString(MAIN_MESS, tvMainMess.getText().toString());
+    }
+
+    public Object onRetainCustomNonConfigurationInstance() {
+
+
+        return mp;
     }
 
     private void initView() {
@@ -137,7 +176,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private void addNewTimer() {
         //ищем свободный id для нового таймера
         int freeId = findFreeId();
-        Log.d(LOG_TAG, "Свободный id = " + freeId);
+        //Log.d(LOG_TAG, "Свободный id = " + freeId);
         //если свободного id нет, то выводим сообщение, что создано максимальное количество
         // таймеров и выходим из метода
         if(freeId >= MAX_TIMERS_AMOUNT) {
@@ -218,8 +257,105 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 addNewTimer();//создать и добавить новый таймер
                 break;
             case R.id.btnSoundOff://нажата кнопка выключения звука
-                //stopSound();//выключить звук
+                stopSound();//выключить звук
         }
+    }
+
+    public void timerEnd(String _message) {
+        //подсвечиваем панель главного сообщения
+        flMainMessBack.setBackgroundResource(R.drawable.border_solid);
+        //выводим сообщение таймера на панель главного сообщения
+        tvMainMess.setText(_message);
+        //меняем состояние главного экрана
+        mainState = MAIN_STATE_ALARM;
+        //включаем сигнал и анимацию
+        alarmStart();
+    }
+
+    // сообщаем активности, что сбросили таймер. Это нужно для отключения сигнала, если сработавший
+    // таймер был последним (определяем по сообщению таймера: если оно совпадает с тем, что
+    // на общем экране - значит это последний сработавший таймер)
+    public void timerReset(String _message) {
+        //выключаем звук
+        stopSound();
+        //Если сообщения таймера и главное сообщение совпадают, сбрасываем подсветку главного сообщения
+        String mess = tvMainMess.getText().toString();
+        if (mess.equals(_message)) {
+            //убираем фон
+            flMainMessBack.setBackgroundColor(Color.BLACK);
+            //удаляем сообщение
+            tvMainMess.setText(getResources().getText(R.string.no_message));
+            mainState = MAIN_STATE_REST;
+        }
+    }
+
+    //начать воспроизведение сигнала
+    private void playSound() {
+        //включаем сигнал
+        Log.d(LOG_TAG, "включаем сигнал");
+        if (mp != null) {
+            resetPlayer();
+            Log.d(LOG_TAG, "ppppppppppppppppppp mp != null");
+        }
+        //создаем новый музыкальный проигрыватель
+        mp = MediaPlayer.create(this, R.raw.music);
+        mp.start();//начинаем воспроизведение
+        //присваиваем слушателя, который определяет окончание композиции
+        mp.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+            @Override
+            public void onCompletion(MediaPlayer mp) {
+                stopSound();
+            }
+        });
+    }
+
+    private void alarmStart() {
+        //запускаем звук
+        playSound();
+        //включаем пульсацию кнопки выключения сигнала SoundOff
+        frameLayoutAnim(flSoundOffBack);
+        mainState = MAIN_STATE_ALARM;
+    }
+
+    //остановить воспроизведение сигнала
+    private void stopSound() {
+        animation = false;//запретить анимацию кнопки выключения звука
+        flSoundOffBack.setBackgroundColor(Color.BLACK);//убираем фон кнопки выключения звука
+        resetPlayer();//выключаем звук и освобождаем ресурсы проигрывателя
+        if (mainState ==  MAIN_STATE_ALARM) {
+            mainState = MAIN_STATE_WAIT;
+        }
+        Log.d(LOG_TAG, "--- mainState = " + mainState);
+    }
+
+    private void resetPlayer() {
+        if (mp != null) {
+            mp.release();//освобождаем ресурсы старого музыкального проигрывателя
+        }
+            mp = null;
+            Log.d(LOG_TAG, "--- resetPlayer");
+    }
+
+    private void frameLayoutAnim(FrameLayout fl) {
+        if(animation) {return;}//если анимация уже запущена выходим из метода
+        animation = true;//разрешаем анимацию
+        //создаем анимацию в другом потоке
+        Handler handler = new Handler();
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                //если анимация запрещена устанавливаем черный фон и покидаем метод
+                if(animation == false) {
+                    fl.setBackgroundColor(Color.BLACK);
+                    return;
+                }
+                //создаем и начинаем анимацию
+                Animation anim = AnimationUtils.loadAnimation(MainActivity.this, R.anim.alpha);
+                fl.setBackgroundResource(R.drawable.border_solid);//фон анимации
+                fl.startAnimation(anim);
+                handler.postDelayed(this, 2000);
+            }
+        });
     }
 
     public void onStop() {
@@ -229,6 +365,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     public void onDestroy() {
         super.onDestroy();
+        animation = false;
         Log.d(LOG_TAG, "MainActivity - onDestroy");
         Log.d(LOG_TAG, " ");
     }

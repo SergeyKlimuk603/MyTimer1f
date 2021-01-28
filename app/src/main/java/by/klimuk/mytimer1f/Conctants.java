@@ -1,6 +1,7 @@
 package by.klimuk.mytimer1f;
 
 import android.content.SharedPreferences;
+import android.media.MediaPlayer;
 
 abstract class Conctants {
     //глобальные переменные проекта
@@ -17,6 +18,9 @@ abstract class Conctants {
     public static final String SAVE_FILE_NAME = "myTimer1";
     public static final int MAX_TIMERS_AMOUNT = 10;//максимальное количество таймеров
     public static final String TIMER_FRAGMENT_ID = "fragmentId";
+    public static final String MAIN_MESS = "mainText";
+
+
 
     //настройки таймера по умолчанию
     public static final int DEFAULT_ID = 0;
@@ -24,5 +28,6 @@ abstract class Conctants {
     public static final String DEFAULT_MESSAGE = "Default message";
     public static final int DEFAULT_DURATION = 10;
 
+    // public static MediaPlayer mp;
 
 }
