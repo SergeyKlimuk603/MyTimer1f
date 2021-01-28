@@ -121,10 +121,10 @@ public class MyTimerFragment extends Fragment implements View.OnClickListener, R
         }
         timeConvert = new Converter();
         handler = new Handler();
-        Log.d(LOG_TAG, "________________________________frag" + id + " onCreate" + " id = " + id +
-                ", name = " + name + ", message = " + message + ", duration = " + duration);
-        Log.d(LOG_TAG, "________________________________frag" + id + " onCreate" + " fragmentId = " + this.getId() +
-                ", fragmentHashCode = " + this.hashCode());
+//        Log.d(LOG_TAG, "________________________________frag" + id + " onCreate" + " id = " + id +
+//                ", name = " + name + ", message = " + message + ", duration = " + duration);
+//        Log.d(LOG_TAG, "________________________________frag" + id + " onCreate" + " fragmentId = " + this.getId() +
+//                ", fragmentHashCode = " + this.hashCode());
     }
 
     @Override
@@ -230,7 +230,7 @@ public class MyTimerFragment extends Fragment implements View.OnClickListener, R
     public void onClick(View v) {
         switch (v.getId()) {
             case BTN_START_ID: //нажата кнопка Start
-                Log.d(LOG_TAG, "________________________________Fragment id = " + this.getId());
+                //Log.d(LOG_TAG, "________________________________Fragment id = " + this.getId());
                 start();
                 break;
             case BTN_RESET_ID: //нажата кнопка Stop
@@ -305,13 +305,13 @@ public class MyTimerFragment extends Fragment implements View.OnClickListener, R
     // отсчет времени
     public void run() {
         if (!runTimer) {//таймер остановлен, прекращаем отсчет
-            Log.d(LOG_TAG, "________________________________frag" + id +
-                    " hash = " + this.hashCode() + " остановлен");
+            //Log.d(LOG_TAG, "________________________________frag" + id +
+             //       " hash = " + this.hashCode() + " остановлен");
             return;
         }
         time = lostTime - ((int) (System.currentTimeMillis() - startTime) / 1000);// оставшееся текущее время
-        Log.d(LOG_TAG, "___________________________tik_______________________ frag" + id +
-                "time = " + time);
+        //Log.d(LOG_TAG, "___________________________tik_______________________ frag" + id +
+            //    "time = " + time);
         tvMess.setText(timeConvert.intToStringTime(time));//выводим оставшееся текущее время на экран
         if (time <= 0){
             endTime();
@@ -346,6 +346,7 @@ public class MyTimerFragment extends Fragment implements View.OnClickListener, R
             duration = data.getIntExtra(TIMER_DURATION, DEFAULT_DURATION);// извлекаем время таймера из интента
             initTimer(name, btnStart, null, R.color.transparent);
             ((MainActivity) getActivity()).saveTimer(this);//сохраняем настройки таймера в файл
+            reset();
             return;
         }
 
@@ -370,7 +371,7 @@ public class MyTimerFragment extends Fragment implements View.OnClickListener, R
     //сохраняем переменные фрагмента при повороте устройства
     public void onSaveInstanceState(Bundle sis) {
         super.onSaveInstanceState(sis);
-        Log.d(LOG_TAG, "________________________________frag" + id + " onSaveInstanceState");
+        //Log.d(LOG_TAG, "________________________________frag" + id + " onSaveInstanceState");
         sis.putInt(TIMER_ID, id);
         sis.putString(TIMER_NAME, name);
         sis.putString(TIMER_MESSAGE, message);
@@ -407,7 +408,7 @@ public class MyTimerFragment extends Fragment implements View.OnClickListener, R
 
     public void onStop() {
         super.onStop();
-        Log.d(LOG_TAG, "________________________________frag" + id + " onStop");
+        //Log.d(LOG_TAG, "________________________________frag" + id + " onStop");
     }
 
     public void onDestroyView() {
@@ -418,7 +419,7 @@ public class MyTimerFragment extends Fragment implements View.OnClickListener, R
     public void onDestroy() {
         super.onDestroy();
         runTimer = false;
-        Log.d(LOG_TAG, "________________________________frag" + id + " onDestroy");
+        //Log.d(LOG_TAG, "________________________________frag" + id + " onDestroy");
     }
 
     public void onDetach() {

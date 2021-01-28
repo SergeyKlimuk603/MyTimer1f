@@ -15,6 +15,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 
 import static by.klimuk.mytimer1f.Conctants.*;
 
@@ -48,8 +50,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     FragmentTransaction transaction;
 
-    MyTimerFragment t0;
-    MyTimerFragment t1;
+//    MyTimerFragment t0;
+//    MyTimerFragment t1;
 
 
     @Override
@@ -65,28 +67,44 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         initView();
         if (savedInstanceState == null) {
             Log.d(LOG_TAG, "MainActivit - onCreate savedInstanceState == null");
-            t0 = new MyTimerFragment(0, "Sergey1", "Hello!!!1", 10);
-            t1 = new MyTimerFragment(1, "Sergey2", "Hello!!!2", 20);
-
-            transaction = getSupportFragmentManager().beginTransaction();
-            transaction.add(timersList.getId(), t0, TIMER_TAG + 0);
-            transaction.add(timersList.getId(), t1, TIMER_TAG + 1);
-            transaction.commit();
-
-            Log.d(LOG_TAG, "MainActivit - onCreate t1.getTag = " + t1.getTag());
-            timers.put(0, t0);
-            timers.put(1, t1);
-
+            //создаем новые таймеры
+            createTimers();
         } else {
             Log.d(LOG_TAG, "MainActivit - onCreate savedInstanceState != null");
             //Log.d(LOG_TAG, "|||" + (((MyTimerFragment)getSupportFragmentManager().findFragmentByTag(TIMER_TAG + 0)).getName()));
 
+            int timersAmount = savedInstanceState.getInt(TIMER_TAG);
 
-            timers.put(0, ((MyTimerFragment)getSupportFragmentManager().findFragmentByTag(TIMER_TAG + 0)));
-            timers.put(1, ((MyTimerFragment)getSupportFragmentManager().findFragmentByTag(TIMER_TAG + 1)));
-            Log.d(LOG_TAG, "|||" +  timers.get(0).getName());
-            Log.d(LOG_TAG, "|||" +  timers.get(1).getName());
+            for (int i = 0; i < timersAmount; i++) {
+                //получаем таг фрагмента по порядковому номеру записанному в Bundle
+                String tag = savedInstanceState.getString(TIMER_TAG + i);
+                Log.d(LOG_TAG, "??? tag" + i + " = " + tag);
 
+                //получаем ссылку на новый фрагмент таймера по номеру тага
+                MyTimerFragment t = ((MyTimerFragment)getSupportFragmentManager().
+                        findFragmentByTag(tag));
+                Log.d(LOG_TAG, "MainActivit - onCreate t.getTimerId() = " + t.getTimerId());
+                timers.put(t.getTimerId(), t);
+            }
+            Log.d(LOG_TAG, "?MainActivit - onCreate timers.size() = " + timers.size());
+
+        }
+    }
+
+    protected  void onSaveInstanceState(Bundle sis) {
+        super.onSaveInstanceState(sis);
+        Log.d(LOG_TAG, "MainActivity onSaveInstanceState");
+        //определяем сколько таймеров содержится в списке (чтобы знать сколько их искать после поворота экрана)
+        int timersAmount = timers.size();
+        sis.putInt(TIMER_TAG, timersAmount);//Для простоты используем в качестве ключа константу TIMER_TAG не добавляя индекс.
+        int i = 0;
+        for (Map.Entry<Integer, MyTimerFragment> item : timers.entrySet()) {//перебираем список таймеров
+            String s = item.getValue().getTag();//таг элемента
+            //передаем таг в Bundle здесь (TIMER_TAG + i) - порядковый номер тага в списке таймеров
+            // он не обязан совпадать с самим тагом таймера, - это нормально
+            sis.putString(TIMER_TAG + i, s);//передаем таг в Bundle здесь (TIMER_TAG + i) может не совпадать с тагом таймера, это нормально
+            Log.d(LOG_TAG, "|?|" + TIMER_TAG + i + " = " + s + ", timers.size() = " + timers.size());
+            i++;//берем следующий элемент
         }
     }
 
@@ -141,7 +159,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         timers.put(_id, t);
         //добавляем новый таймер на экран
         transaction = getSupportFragmentManager().beginTransaction();
-        transaction.add(timersList.getId(), t);
+        transaction.add(timersList.getId(), t, TIMER_TAG + _id);
         transaction.commit();
     }
 
@@ -189,8 +207,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         transaction = getSupportFragmentManager().beginTransaction();
         transaction.remove(timers.get(_id));
         transaction.commit();
-//        //удаляем таймер из списка
-//        timers.remove(requestCode);
+        //удаляем таймер из списка
+        timers.remove(_id);
     }
 
     @Override
