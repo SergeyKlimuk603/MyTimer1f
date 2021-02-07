@@ -27,12 +27,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private final String LOG_TAG = "myLogs";
     //Log.d(LOG_TAG, "Создали активити");
 
-//    //настройки таймера по умолчанию
-//    private final int DEFAULT_ID = 0;
-//    private final String DEFAULT_NAME = "Default timer";
-//    private final String DEFAULT_MESSAGE = "Default message";
-//    private final int DEFAULT_DURATION = 10;
-
     //переменные доступа к view элементам
     LinearLayout timersList;//поле списка таймеров
     FrameLayout flMainMessBack;// поле подсветки основного сообщения
@@ -52,8 +46,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public static final int MAIN_STATE_ALARM = 1;
     public static final int MAIN_STATE_WAIT = 2;
 
-    public static final String MAIN_STATE = "mainState";
-
     //проигрыватель звуковых файлов
     public static MediaPlayer mp;
 
@@ -70,22 +62,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        Log.d(LOG_TAG, "MainActivit - onCreate");
-
         //создаем список для таймеров
         timers = new HashMap<Integer, MyTimerFragment>();
         //инициализация представлений
         initView();
         if (savedInstanceState == null) {
-            Log.d(LOG_TAG, "MainActivit - onCreate savedInstanceState == null");
             //создаем новые таймеры
             createTimers();
             mainState = MAIN_STATE_REST;
 
         } else {
-            Log.d(LOG_TAG, "MainActivit - onCreate savedInstanceState != null");
-            //Log.d(LOG_TAG, "|||" + (((MyTimerFragment)getSupportFragmentManager().findFragmentByTag(TIMER_TAG + 0)).getName()));
-
             //определяем количество таймеров
             int timersAmount = savedInstanceState.getInt(TIMER_TAG);//Для простоты используем в качестве ключа константу TIMER_TAG не добавляя индекс.
 
@@ -93,21 +79,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 //получаем таг фрагмента по порядковому номеру записанному в Bundle
                 String tag = savedInstanceState.getString(TIMER_TAG + i);
 
-                        //Log.d(LOG_TAG, "??? tag" + i + " = " + tag);
-
                 //получаем ссылку на новый фрагмент таймера по номеру тага
                 MyTimerFragment t = ((MyTimerFragment)getSupportFragmentManager().
                         findFragmentByTag(tag));
-                //Log.d(LOG_TAG, "MainActivit - onCreate t.getTimerId() = " + t.getTimerId());
                 timers.put(t.getTimerId(), t);
             }
-            //Log.d(LOG_TAG, "?MainActivit - onCreate timers.size() = " + timers.size());
-
 
             //эту переменную сделали статической, поэтому при повороте ее передавать не нужно
             //mainState = savedInstanceState.getInt(MAIN_STATE, MAIN_STATE_REST);
-            Log.d(LOG_TAG, "mainState = " + mainState);
-
             tvMainMess.setText(savedInstanceState.getString(MAIN_MESS));
 
             if (mainState == MAIN_STATE_ALARM) {
@@ -121,7 +100,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     protected  void onSaveInstanceState(Bundle sis) {
         super.onSaveInstanceState(sis);
-        Log.d(LOG_TAG, "MainActivity onSaveInstanceState");
         //определяем сколько таймеров содержится в списке (чтобы знать сколько их искать после поворота экрана)
         int timersAmount = timers.size();
         sis.putInt(TIMER_TAG, timersAmount);//Для простоты используем в качестве ключа константу TIMER_TAG не добавляя индекс.
@@ -131,20 +109,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             //передаем таг в Bundle здесь (TIMER_TAG + i) - порядковый номер тага в списке таймеров
             // он не обязан совпадать с самим тагом таймера, - это нормально
             sis.putString(TIMER_TAG + i, s);//передаем таг в Bundle здесь (TIMER_TAG + i) может не совпадать с тагом таймера, это нормально
-            //Log.d(LOG_TAG, "|?|" + TIMER_TAG + i + " = " + s + ", timers.size() = " + timers.size());
             i++;//берем следующий элемент
         }
-        //сохраняем состояние активности
-        //эту переменную сделали статической, поэтому при повороте ее передавать не нужно
-        //sis.putInt(MAIN_STATE, mainState);
+
         //сохраняем текст отображаемый в главном сообщении
         sis.putString(MAIN_MESS, tvMainMess.getText().toString());
-    }
-
-    public Object onRetainCustomNonConfigurationInstance() {
-
-
-        return mp;
     }
 
     private void initView() {
@@ -176,7 +145,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private void addNewTimer() {
         //ищем свободный id для нового таймера
         int freeId = findFreeId();
-        //Log.d(LOG_TAG, "Свободный id = " + freeId);
         //если свободного id нет, то выводим сообщение, что создано максимальное количество
         // таймеров и выходим из метода
         if(freeId >= MAX_TIMERS_AMOUNT) {
@@ -292,10 +260,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     //начать воспроизведение сигнала
     private void playSound() {
         //включаем сигнал
-        Log.d(LOG_TAG, "включаем сигнал");
         if (mp != null) {
             resetPlayer();
-            Log.d(LOG_TAG, "ppppppppppppppppppp mp != null");
         }
         //создаем новый музыкальный проигрыватель
         mp = MediaPlayer.create(this, R.raw.music);
@@ -325,15 +291,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         if (mainState ==  MAIN_STATE_ALARM) {
             mainState = MAIN_STATE_WAIT;
         }
-        Log.d(LOG_TAG, "--- mainState = " + mainState);
     }
 
     private void resetPlayer() {
         if (mp != null) {
             mp.release();//освобождаем ресурсы старого музыкального проигрывателя
         }
-            mp = null;
-            Log.d(LOG_TAG, "--- resetPlayer");
+            mp = null;//обнуляем ссылку чтобы отвязаться от старого плеера
     }
 
     private void frameLayoutAnim(FrameLayout fl) {
@@ -360,13 +324,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     public void onStop() {
         super.onStop();
-        Log.d(LOG_TAG, "MainActivity - onStop");
     }
 
     public void onDestroy() {
         super.onDestroy();
         animation = false;
-        Log.d(LOG_TAG, "MainActivity - onDestroy");
-        Log.d(LOG_TAG, " ");
     }
 }
