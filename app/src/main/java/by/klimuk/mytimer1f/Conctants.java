@@ -11,7 +11,8 @@ abstract class Conctants {
     public static final String TIMER_DURATION = "duration";
     public static final String TIMER_TIME = "time";
     public static final String TIMER_START_TIME = "startTime";
-    public static final String TIMER_LOST_TIME = "lostTime";
+    public static final String TIMER_TIME_PAUSE = "timePause";
+    public static final String TIMER_START_PAUSE = "startPause";
     public static final String TIMER_RUN = "runTimer";
     public static final String TIMER_TAG = "timerTag";
     public static final int TIMER_DELETE_RESULT = -51;//переменная используется чтобы сообщить об удалении таймера из настроек. Значение взято от балды
@@ -19,6 +20,7 @@ abstract class Conctants {
     public static final int MAX_TIMERS_AMOUNT = 10;//максимальное количество таймеров
     public static final String TIMER_FRAGMENT_ID = "fragmentId";
     public static final String MAIN_MESS = "mainText";
+    public static final String MAIN_MESS_STATE = "mainState";
 
 
 

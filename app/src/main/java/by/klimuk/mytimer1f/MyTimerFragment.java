@@ -1,6 +1,8 @@
 package by.klimuk.mytimer1f;
 
 import android.app.Activity;
+import android.app.AlarmManager;
+import android.app.PendingIntent;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -20,10 +22,9 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import static android.app.Activity.RESULT_OK;
+import static android.content.Context.ALARM_SERVICE;
 import static android.content.Context.MODE_PRIVATE;
 import static by.klimuk.mytimer1f.Conctants.*;
-
-
 
 public class MyTimerFragment extends Fragment implements View.OnClickListener, Runnable {
 
@@ -37,11 +38,14 @@ public class MyTimerFragment extends Fragment implements View.OnClickListener, R
     private String message; // сообщение выдаваемое таймером по окончании отсчета
     private int duration; // время отсчитываемое таймером
     private  int time;// текущее время таймера
-    private int lostTime;// время оставшееся для отсчет после запуска или перезапуска.
+    //private int lostTime;// время оставшееся для отсчет после запуска или перезапуска.
     // Если lostTime < 0 - таймер в состоянии ожидания команды запуска
     // Если lostTime = 0 - таймер завершил отсчет и ждет сброса
     // Если lostTime > 0 - таймер в состоянии отсчета времени или паузы (зависит от переменной runTimer)
     private long startTime;// системное время запуска или перезапуска таймера
+    private long timePause;// системное время нахождения таймера в состоянии Pause
+    private long startPause;//системное время постановки таймера в Pause
+    private long endPause;//системное время снятия таймера с Pause
     private boolean runTimer; //флаг работы таймера. Если идет отсчет runTimer == true
 
     // Вспомогательные элементы таймера
@@ -76,13 +80,18 @@ public class MyTimerFragment extends Fragment implements View.OnClickListener, R
     public MyTimerFragment() {
         // Required empty public constructor
     }
-    public MyTimerFragment(int _id, String _name, String _message,
-                           int _dur) {
+    public MyTimerFragment(int _id, String _name, String _message, int _dur, int _time,
+                           boolean _runTimer, long _startTime, long _timePause, long _startPause ) {
         setTimerId(_id);
         setName(_name);
         setMessage(_message);
         setDuration(_dur);
-        lostTime = -1;
+        setTime(_time);
+        setRunTimer(_runTimer);
+        setStartTime(_startTime);
+        setTimePause(_timePause);
+        setStartPause(_startPause);
+        Log.d(LOG_TAG, "Constructor " + name);
     }
 
     //имена кнопок берем из ресурса strings
@@ -97,24 +106,64 @@ public class MyTimerFragment extends Fragment implements View.OnClickListener, R
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        Intent intent = new Intent(getActivity(), MainActivity.class);
+        PendingIntent pIntent = PendingIntent.getActivity(getActivity(), id, intent,
+                PendingIntent.FLAG_CANCEL_CURRENT);
+        AlarmManager am = (AlarmManager) getActivity().getSystemService(ALARM_SERVICE);
+        am.cancel(pIntent);
+        Log.d(LOG_TAG, "_________________________________ " +
+                "MyTimerFragment onCreate() удалили AlarmManeger " + name);
+
         //если фракгмент пересоздается - восстанавливаем даные
         if (savedInstanceState != null) {
+            Log.d(LOG_TAG, "_________________________________ savedInstanceState != null");
             id = savedInstanceState.getInt(TIMER_ID);
             name = savedInstanceState.getString(TIMER_NAME);
             message = savedInstanceState.getString(TIMER_MESSAGE);
             duration = savedInstanceState.getInt(TIMER_DURATION);
             time = savedInstanceState.getInt(TIMER_TIME);
-            lostTime = savedInstanceState.getInt(TIMER_LOST_TIME);
             startTime = savedInstanceState.getLong(TIMER_START_TIME);
+            timePause = savedInstanceState.getLong(TIMER_TIME_PAUSE);
+            startPause = savedInstanceState.getLong(TIMER_START_PAUSE);
             runTimer = savedInstanceState.getBoolean(TIMER_RUN);
+        } else {
+            //Log.d(LOG_TAG, "_________________________________ MyTimerFragment onCreate() startTime = " + startTime);
+            //Log.d(LOG_TAG, "_________________________________ MyTimerFragment onCreate() runTimer = " + runTimer);
+            //проверяем был ли таймер в состоянии Pause. Если был, то добавляем к timePause время,
+            //которое приложение было в неактивном состоянии и обновляем startPause, как бы
+            //запуская новый цикл паузы.
+            if (time > 0 && time != duration && runTimer == false) {
+                timePause = timePause + (System.currentTimeMillis()- startPause);
+                startPause = System.currentTimeMillis();
+                //Log.d(LOG_TAG, "_________________________________ MyTimerFragment onCreate() timePause = " + timePause);
+            }
+            //вычисляем оставшееся для отсчета время
+            time = timeLeft();
+            //Log.d(LOG_TAG, "_________________________________ MyTimerFragment onCreate() time = " + time);
         }
         timeConvert = new Converter();
         handler = new Handler();
     }
 
+    private int timeLeft() {
+        //если startTime == 0 значит таймер еще не запускали и он сброшен, возвращаем уставку таймера
+        if (startTime == 0) {
+            return duration;
+        }
+        int _time = duration - ((int) ((System.currentTimeMillis() - startTime) -
+                timePause) / 1000);
+        // если _time <= 0, значит время вышло. Нужно смотреть значение переменной таймера runTimer
+        // для определения состояния таймера
+        if (_time <= 0) {
+            _time = 0;
+        }
+        return _time;
+    }
+
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
+        Log.d(LOG_TAG, "_________________________________ MyTimerFragment onCreateView() " + name);
         View mainView = inflater.inflate(R.layout.fragment_my_timer, container, false);
         layoutMainBack = (FrameLayout) mainView.findViewById(R.id.flMainBack);
         tvName = (TextView) mainView.findViewById(R.id.tvName);
@@ -124,17 +173,18 @@ public class MyTimerFragment extends Fragment implements View.OnClickListener, R
         ivSet = (ImageView) mainView.findViewById(R.id.ivSet);// добавляем значек для вызова меню настроек таймера
         ivSet.setOnClickListener(this);//  добавляем слушателя к значку настройки таймера
 
+
         initBtnNames();
         createButtons();
 
         //инициализация таймера при различных условиях
-        if (lostTime == -1){//таймер сброшен
+        if (time == duration && runTimer == false){//таймер сброшен
             initTimer(name, btnStart, null, R.color.transparent);
             //reset();
-        } else if (lostTime > 0 & runTimer == false) {//таймер в состоянии паузы
-            initTimer(timeConvert.intToStringTime(lostTime), btnCont, btnReset, R.color.transparent);
+        } else if (time > 0 & runTimer == false) {//таймер в состоянии паузы
+            initTimer(timeConvert.intToStringTime(time), btnCont, btnReset, R.color.transparent);
             //pause();
-        }  else if (lostTime == 0) {//таймер завершил отсчет и ждет сброса
+        }  else if (time == 0 && runTimer == false) {//таймер завершил отсчет и ждет сброса
             initTimer(message, btnReset, null, R.color.background_main);
             //endTime();
         } else {//таймер работает
@@ -233,9 +283,11 @@ public class MyTimerFragment extends Fragment implements View.OnClickListener, R
     private void start() {
         addButtons(btnPause, btnReset);//обновляем кнопки
         runTimer = true;// таймер считает
-        lostTime = duration; //начало отсчета, оставшееся для отсчета время
+        //lostTime = duration; //начало отсчета, оставшееся для отсчета время
         startTime = System.currentTimeMillis();// системное время при пуске или перезапуске таймера
         handler.post(this);//запускаем отсчет
+        ivSet.setClickable(false);
+        ivSet.setVisibility(View.GONE);
     }
 
     //сброс таймера
@@ -248,27 +300,34 @@ public class MyTimerFragment extends Fragment implements View.OnClickListener, R
         //убираем фон
         layoutMainBack.setBackgroundResource(R.color.transparent);
         //таймер в ожидании комманды запуска
-        lostTime = -1;
+        time = duration;
+        startTime = 0L;
+        timePause = 0L;
+        startPause = 0L;
         // сообщаем активности, что сбросили таймер. Это нужно для отключения сигнала, если сработавший
         // таймер был последним (определяем по сообщению таймера: если оно совпадает с тем, что
         // на общем экране - значит это последний сработавший таймер)
         ((MainActivity) getActivity()).timerReset(message);
+        ivSet.setClickable(true);
+        ivSet.setVisibility(View.VISIBLE);
     }
 
     //приостановить отсчет времени
     private void pause() {
         addButtons(btnCont, btnReset);//обновляем кнопки
         runTimer = false;// останавливаем таймер
-        lostTime = time;// запоминаем оставшееся для отсчета время
-        tvMess.setText(timeConvert.intToStringTime(lostTime));//эта строчка повороте экрана, а может и нет
+        startPause = System.currentTimeMillis();
+        //lostTime = time;// запоминаем оставшееся для отсчета время
+        tvMess.setText(timeConvert.intToStringTime(time));//эта строчка нужна при повороте экрана, а может и нет
     }
 
     //продолжить отсчет времени
     private void cont() {
-        lostTime = time;// запоминаем оставшееся для отсчета время yfljkasjdf
+        //lostTime = time;// запоминаем оставшееся для отсчета время yfljkasjdf
         addButtons(btnPause, btnReset);//обновляем кнопки
         // продолжаем остчет времени
-        startTime = System.currentTimeMillis();// системное время при пуске или перезапуске таймера
+        endPause = System.currentTimeMillis();
+        timePause = timePause + (endPause - startPause);
         runTimer = true;
         handler.post(this);
     }
@@ -288,7 +347,15 @@ public class MyTimerFragment extends Fragment implements View.OnClickListener, R
         if (!runTimer) {//таймер остановлен, прекращаем отсчет
             return;
         }
-        time = lostTime - ((int) (System.currentTimeMillis() - startTime) / 1000);// оставшееся текущее время
+        //Log.d(LOG_TAG, "-----------tik " + name + " -------------");
+//        Log.d(LOG_TAG, "before time = " + time);
+//        Log.d(LOG_TAG, "before startTime = " + startTime);
+//        Log.d(LOG_TAG, "before timePause = " + timePause);
+        // оставшееся текущее время
+        time = timeLeft();
+//        Log.d(LOG_TAG, "after time = " + time);
+//        Log.d(LOG_TAG, "after startTime = " + startTime);
+//        Log.d(LOG_TAG, "after timePause = " + timePause);
         tvMess.setText(timeConvert.intToStringTime(time));//выводим оставшееся текущее время на экран
         if (time <= 0){
             endTime();
@@ -300,7 +367,7 @@ public class MyTimerFragment extends Fragment implements View.OnClickListener, R
     //отсчет закончен
     private void endTime() {
         runTimer = false;
-        lostTime = 0;// таймер завершил отсчет времени и ждет сброса
+        time = 0;// таймер завершил отсчет времени и ждет сброса
         addButtons(btnReset);//обновляем кнопки
         tvMess.setText(message);
         layoutMainBack.setBackgroundResource(R.color.background_main);// выделяем сработавший таймер фоном
@@ -337,42 +404,63 @@ public class MyTimerFragment extends Fragment implements View.OnClickListener, R
     //сохраняем переменные фрагмента при повороте устройства
     public void onSaveInstanceState(Bundle sis) {
         super.onSaveInstanceState(sis);
+        Log.d(LOG_TAG, "_________________________________ MyTimerFragment onSaveInstanceState() " + name);
         sis.putInt(TIMER_ID, id);
         sis.putString(TIMER_NAME, name);
         sis.putString(TIMER_MESSAGE, message);
         sis.putInt(TIMER_DURATION, duration);
         sis.putInt(TIMER_TIME, time);
-        sis.putInt(TIMER_LOST_TIME, lostTime);
         sis.putLong(TIMER_START_TIME, startTime);
+        sis.putLong(TIMER_TIME_PAUSE, timePause);
+        sis.putLong(TIMER_START_PAUSE, startPause);
         sis.putBoolean(TIMER_RUN, runTimer);
+
     }
 
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
+        Log.d(LOG_TAG, "_________________________________ MyTimerFragment onActivityCreated() " + name);
     }
 
     public void onResume() {
         super.onResume();
+        Log.d(LOG_TAG, "_________________________________ MyTimerFragment onResume() " + name);
     }
 
     public void onPause() {
+        Log.d(LOG_TAG, "_________________________________ MyTimerFragment onPause() " + name);
         super.onPause();
     }
 
     public void onStop() {
+        Log.d(LOG_TAG, "_________________________________ MyTimerFragment onStop() " + name);
         super.onStop();
     }
 
     public void onDestroyView() {
+        Log.d(LOG_TAG, "_________________________________ MyTimerFragment onDestroyView() " + name);
         super.onDestroyView();
     }
 
     public void onDestroy() {
-        super.onDestroy();
+        Log.d(LOG_TAG, "_________________________________ MyTimerFragment onDestroy() " + name);
+
+        if (runTimer) {
+            Intent intent = new Intent(getActivity(), MainActivity.class);
+            PendingIntent pIntent = PendingIntent.getActivity(getActivity(), id, intent,
+                    PendingIntent.FLAG_CANCEL_CURRENT);
+            AlarmManager am = (AlarmManager) getActivity().getSystemService(ALARM_SERVICE);
+            am.set(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + ((time + 1) * 1000),
+                    pIntent);
+            Log.d(LOG_TAG, "_________________________________ MyTimerFragment onDestroy() установили AlarmManeger " + name);
+        }
         runTimer = false;
+        super.onDestroy();
+
     }
 
     public void onDetach() {
+        Log.d(LOG_TAG, "_________________________________ MyTimerFragment onDetach() " + name);
         super.onDetach();
     }
 
@@ -415,6 +503,55 @@ public class MyTimerFragment extends Fragment implements View.OnClickListener, R
     }
 
     public void setDuration(int duration) {
+        if (duration < 0) {
+            this.duration = 0;
+            return;
+        }
+        if (duration > 359999){
+            this.duration = 359999;
+            return;
+        }
         this.duration = duration;
     }
+
+    public int getTime() {
+        return time;
+    }
+
+    public void setTime(int time) {
+        this.time = time;
+    }
+
+    public long getStartTime() {
+        return startTime;
+    }
+
+    public void setStartTime(long startTime) {
+        this.startTime = startTime;
+    }
+
+    public long getTimePause() {
+        return timePause;
+    }
+
+    public void setTimePause(long timePause) {
+        this.timePause = timePause;
+    }
+
+    public long getStartPause() {
+        return startPause;
+    }
+
+    public void setStartPause(long startPause) {
+        this.startPause = startPause;
+    }
+
+    public boolean isRunTimer() {
+        return runTimer;
+    }
+
+    public void setRunTimer(boolean runTimer) {
+        this.runTimer = runTimer;
+    }
+
 }
